@@ -4,31 +4,36 @@ from flask import Flask, request, jsonify, redirect
 
 app = Flask(__name__)
 
-# ئەڤ زانیاریان دێ ژ Railway وەرگریت
+# وەرگرتنا زانیاریان ژ Variables یێن Railway
 CLIENT_KEY = os.getenv('CLIENT_KEY')
 CLIENT_SECRET = os.getenv('CLIENT_SECRET')
 REDIRECT_URI = os.getenv('REDIRECT_URI')
 
 @app.route('/')
 def index():
-    return "<h1>TikTok Bot Control Center</h1><p>Bot is Active and Running.</p>"
+    return """
+    <h1>TikTok Bot Control Center</h1>
+    <p>Status: <span style='color:green'>Active</span></p>
+    <hr>
+    <a href='/login'><button style='padding:10px 20px; background:blue; color:white; border:none; border-radius:5px; cursor:pointer;'>Connect TikTok Account</button></a>
+    """
 
+# --- ١. بەشێ چوونە ژوورێ (Authentication) ---
 @app.route('/login')
 def login():
-    # ئەڤ لینکە ڕێ دەتە بوتێ تە بچیتە د ناڤ هەر ئەکاونتەکی دا
-    # Scopes: دەستهەڵاتێن بوتێ تە (زانیاری، لیستا ڤیدیۆیان، بڵاڤکرن)
+    # ئەڤە لینکێ فەرمی یێ تیک تۆکێ یە بۆ دەستهەڵاتێ
+    # تێبینی: Scopes دیار دکەن کا بوت دێ چ کاران کەت
     scopes = "user.info.basic,video.list,video.upload,video.publish"
-    auth_url = f"https://www.tiktok.com/v2/auth/authorize/?client_key={CLIENT_KEY}&scope={scopes}&response_type=code&redirect_uri={REDIRECT_URI}"
+    auth_url = f"https://www.tiktok.com/v2/auth/authorize?client_key={CLIENT_KEY}&scope={scopes}&response_type=code&redirect_uri={REDIRECT_URI}"
     return redirect(auth_url)
 
 @app.route('/callback')
 def callback():
-    # وەرگرتنا کۆدێ تیک تۆکێ دهنێریت پاش چوونە ژوورێ
     code = request.args.get('code')
     if not code:
         return "Error: No code returned from TikTok", 400
 
-    # گوهۆڕینا کۆدی بۆ Access Token یێ هەمیشەیی
+    # گوهۆڕینا Code بۆ Access Token
     url = "https://open.tiktokapis.com/v2/oauth/token/"
     headers = {'Content-Type': 'application/x-www-form-urlencoded'}
     data = {
@@ -42,22 +47,15 @@ def callback():
     response = requests.post(url, headers=headers, data=data)
     token_data = response.json()
     
-    # نوکە بوت یێ ئامادەیە بۆ کارێ ب هێز
+    # لێرە Token دێ هێتە پاراستن (د داتابەیسەکێ دا یان پیشاندان)
     return jsonify({
-        "status": "Success",
-        "message": "Bot is now authorized!",
-        "data": token_data
+        "message": "Login Successful!",
+        "access_token": token_data.get('access_token'),
+        "expires_in": token_data.get('expires_in')
     })
 
-# ئەڤ بەشە بۆ وەرگرتنا لیستا ڤیدیۆیانە (نموونەیا کارەکێ ب هێز)
-@app.route('/my-videos')
-def get_videos():
-    access_token = request.args.get('token')
-    url = "https://open.tiktokapis.com/v2/video/list/"
-    headers = {"Authorization": f"Bearer {access_token}"}
-    response = requests.post(url, headers=headers, json={"max_count": 10})
-    return jsonify(response.json())
-
-if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 5000))
-    app.run(host='0.0.0.0', port=port)
+# --- ٢. بەشێ ئانالیزا ئەکاونتی (Analytics) ---
+@app.route('/profile')
+def get_profile():
+    token = request.args.get('token')
+    url = "https://open.
